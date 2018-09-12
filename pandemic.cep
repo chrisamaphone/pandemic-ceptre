@@ -1,0 +1,116 @@
+city : type.
+la : city.
+atlanta : city.
+bogota : city.
+milan : city.
+delhi : city.
+tokyo : city.
+
+adj city city : bwd.
+adj atlanta la.  adj la atlanta.
+adj atlanta milan. adj milan atlanta.
+adj la bogota. adj bogota la.
+adj la delhi. adj delhi la.
+adj milan delhi. adj delhi milan.
+adj milan bogota.  adj bogota milan.
+adj milan tokyo. adj tokyo milan.
+adj delhi tokyo. adj tokyo delhi.
+
+card : type.
+city_card city : card.
+epidemic : card.
+
+player : type.
+ana : player.
+bill : player.
+claudette : player.
+danny : player.
+
+turn_next player player : bwd.
+last_player player : bwd.
+first_player player : bwd.
+first_player ana.
+turn_next ana bill.
+turn_next bill claudette.
+turn_next claudette danny.
+last_player danny.
+
+clr : type.
+blue : clr.
+red : clr.
+yellow : clr.
+
+color city clr : bwd.
+color atlanta blue.
+color milan blue.
+color la yellow.
+color bogota yellow.
+color delhi red.
+color tokyo red.
+
+research_ctr city : pred.
+disease city : pred.
+virus : pred.
+
+at player city : pred.
+turn player : pred.
+hand player card : pred.
+deck card : pred.
+discard card : pred.
+draw player : pred.
+
+context init =
+{
+  research_ctr atlanta,
+  at ana atlanta,
+  at bill atlanta,
+  at claudette atlanta,
+  at danny atlanta,
+  deck (city_card atlanta),
+  deck (city_card bogota),
+  deck (city_card delhi),
+  deck (city_card la),
+  deck (city_card milan),
+  deck (city_card tokyo),
+  deck epidemic,
+  deck epidemic,
+  turn ana
+}
+
+stage start {
+}
+
+do/setup : qui * stage start * $turn P -o draw P * stage draw.
+do/draw2 : qui * stage draw * turn P * turn_next P P' 
+        -o turn P' * draw P' * stage draw.
+
+stage draw {
+  draw : draw P * deck C -o hand P C.
+}
+
+do/initial_infect :
+  qui * stage draw * turn P * last_player P
+-o
+  stage infect * virus * virus * virus.
+
+stage infect {
+  infect2 : deck (city_card C) * virus 
+    -o disease C * disease C * discard (city_card C).
+}
+
+end_setup : qui * stage infect * first_player P
+    -o turn P * turn P * turn P * turn P * stage turn.
+
+stage turn {
+  walk/swim : turn P * at P C * adj C C' -o at P C'.
+  fly       : turn P * at P C * hand P (city_card C') -o at P C'.
+  charter   : turn P * at P C * $research_ctr C * $research_ctr C'
+            -o at P C'.
+  treat     : turn P * $at P C * disease C -o ().
+  build     : turn P * $at P C * hand P (city_card C) -o research_ctr C.
+  end_turn  : turn P -o ().
+}
+#interactive turn.
+
+
+#trace _ start init.
