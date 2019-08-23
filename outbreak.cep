@@ -1,0 +1,134 @@
+city : type.
+la : city.
+atlanta : city.
+bogota : city.
+milan : city.
+delhi : city.
+tokyo : city.
+
+neq city city : bwd.
+neq la atlanta.  neq la bogota.  neq la milan.  neq la delhi.  neq la tokyo.
+neq atlanta la.  neq atlanta bogota.  neq atlanta milan.  neq atlanta delhi.  neq atlanta tokyo.
+neq bogota la.  neq bogota atlanta.  neq bogota milan.  neq bogota delhi.  neq bogota tokyo.
+neq milan la.  neq milan atlanta.  neq milan bogota.  neq milan delhi.  neq milan tokyo.
+neq delhi la.  neq delhi atlanta.  neq delhi bogota.  neq delhi milan.  neq delhi tokyo.
+neq tokyo la.  neq tokyo atlanta.  neq tokyo bogota.  neq tokyo milan.  neq tokyo delhi.
+
+city_list : type.
+nil : city_list.
+cons city city_list : city_list.
+
+neighbors city city_list : bwd.
+neighbors atlanta (cons la (cons milan nil)).
+neighbors la (cons atlanta (cons bogota (cons delhi nil))).
+neighbors milan (cons atlanta (cons delhi (cons bogota (cons tokyo nil)))).
+neighbors delhi (cons la (cons milan (cons tokyo nil))).
+neighbors tokyo (cons delhi (cons milan nil)).
+
+member city city_list : bwd.
+member/hit : member C (cons C L).
+member/miss : member C (cons C' L)
+  <- neq C C'
+  <- member C L.
+
+adj city city : bwd.
+
+adj C C'
+  <- neighbors C N
+  <- member C' N.
+
+card : type.
+city_card city : card.
+
+deck card : pred. % card is in the deck
+discard card : pred. % card is in the discard pile
+disease city : pred. % city has 1 disease token
+spread city_list : pred. % spread disease to list of cities
+outbroken city : pred.
+not_outbroken city : pred.
+once : pred.
+
+context init =
+{ % 2 instances of each city card
+  deck (city_card atlanta),
+  deck (city_card atlanta),
+  deck (city_card la),
+  deck (city_card la),
+  deck (city_card bogota),
+  deck (city_card bogota),
+  deck (city_card milan),
+  deck (city_card milan),
+  deck (city_card delhi),
+  deck (city_card delhi),
+  deck (city_card tokyo),
+  deck (city_card tokyo),
+  not_outbroken atlanta,
+  not_outbroken la,
+  not_outbroken bogota,
+  not_outbroken milan,
+  not_outbroken delhi,
+  not_outbroken tokyo,
+  once
+}
+
+stage infect {
+
+  % Draw a card and impart 2 disease tokens to it. 
+  infect2 : 
+    once * deck (city_card C)
+      -o disease C * disease C * discard (city_card C).
+}
+#interactive infect.
+
+
+
+infect-to-check_outbreak : 
+    qui * stage infect
+  -o
+    stage check_outbreak * once.
+
+stage check_outbreak {
+  outbreak :
+    once *
+    $disease C * $disease C * $disease C * disease C
+      * neighbors C N
+      * not_outbroken C
+    -o
+        outbroken C
+      * spread N. 
+      % should also increase outbreak level
+}
+
+check_outbreak-to-spread :
+    qui * stage check_outbreak * $spread N
+  -o
+    stage spread.
+
+no_outbreaks :
+    qui * stage check_outbreak * once
+  -o
+    stage cleanup.
+
+stage spread {
+  spread/nil : spread nil -o ().
+
+  spread/cons :
+    spread (cons C L) -o disease C * spread L.
+      
+}
+
+check_for_chain_outbreaks :
+  qui * stage spread
+    -o
+    stage check_outbreak * once.
+
+stage cleanup {
+  replace_not_outbroken :
+    outbroken C -o not_outbroken C.
+    
+}
+
+cleanup-to-infect :
+qui * stage cleanup -o stage infect * once.
+
+#trace _ infect init.

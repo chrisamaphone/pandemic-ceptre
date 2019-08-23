@@ -6,15 +6,46 @@ milan : city.
 delhi : city.
 tokyo : city.
 
+neq city city : bwd.
+neq la atlanta.  neq la bogota.  neq la milan.  neq la delhi.  neq la tokyo.
+neq atlanta la.  neq atlanta bogota.  neq atlanta milan.  neq atlanta delhi.  neq atlanta tokyo.
+neq bogota la.  neq bogota atlanta.  neq bogota milan.  neq bogota delhi.  neq bogota tokyo.
+neq milan la.  neq milan atlanta.  neq milan bogota.  neq milan delhi.  neq milan tokyo.
+neq delhi la.  neq delhi atlanta.  neq delhi bogota.  neq delhi milan.  neq delhi tokyo.
+neq tokyo la.  neq tokyo atlanta.  neq tokyo bogota.  neq tokyo milan.  neq tokyo delhi.
+
+
+city_list : type.
+nil : city_list.
+cons city city_list : city_list.
+
+neighbors city city_list : bwd.
+neighbors atlanta (cons la (cons milan nil)).
+neighbors la (cons atlanta (cons bogota (cons delhi nil))).
+neighbors milan (cons atlanta (cons delhi (cons bogota (cons tokyo nil)))).
+neighbors delhi (cons la (cons milan (cons tokyo nil))).
+neighbors tokyo (cons delhi (cons milan nil)).
+
+member city city_list : bwd.
+member/hit : member C (cons C L).
+member/miss : member C (cons C' L)
+  <- neq C C'
+  <- member C L.
+
 adj city city : bwd.
-adj atlanta la.  adj la atlanta.
-adj atlanta milan. adj milan atlanta.
-adj la bogota. adj bogota la.
-adj la delhi. adj delhi la.
-adj milan delhi. adj delhi milan.
-adj milan bogota.  adj bogota milan.
-adj milan tokyo. adj tokyo milan.
-adj delhi tokyo. adj tokyo delhi.
+
+adj C C'
+  <- neighbors C N
+  <- member C' N.
+
+% adj atlanta la.  adj la atlanta.
+% adj atlanta milan. adj milan atlanta.
+% adj la bogota. adj bogota la.
+% adj la delhi. adj delhi la.
+% adj milan delhi. adj delhi milan.
+% adj milan bogota.  adj bogota milan.
+% adj milan tokyo. adj tokyo milan.
+% adj delhi tokyo. adj tokyo delhi.
 
 card : type.
 city_card city : card.
@@ -39,6 +70,7 @@ clr : type.
 blue : clr.
 red : clr.
 yellow : clr.
+black : clr.
 
 color city clr : bwd.
 color atlanta blue.
@@ -50,8 +82,10 @@ color tokyo red.
 
 research_ctr city : pred.
 disease city : pred.
+spread city_list : pred. % spread disease to list of cities
 virus : pred.
 
+% XXX - change turns to count a quantity - track which player went last
 at player city : pred.
 turn player : pred.
 hand player card : pred.
@@ -101,16 +135,43 @@ stage infect {
 end_setup : qui * stage infect * first_player P
     -o turn P * turn P * turn P * turn P * stage turn.
 
+stage outbreak {
+  spread/init : 
+    $disease C * $disease C * $disease C * disease C
+    * neighbors C N
+    -o
+    spread N. % should also increase outbreak level
+
+  spread/nil : spread nil -o ().
+
+  spread/cons :
+    spread (cons C L) -o disease C * spread L.
+      
+}
+
 stage turn {
-  walk/swim : turn P * at P C * adj C C' -o at P C'.
-  fly       : turn P * at P C * hand P (city_card C') -o at P C'.
-  charter   : turn P * at P C * $research_ctr C * $research_ctr C'
-            -o at P C'.
-  treat     : turn P * $at P C * disease C -o ().
-  build     : turn P * $at P C * hand P (city_card C) -o research_ctr C.
-  end_turn  : turn P -o ().
+  drive/ferry : turn P * at P C * adj C C' -o at P C'.
+  fly         : turn P * at P C * hand P (city_card C') -o at P C'.
+  charter     : turn P * at P C * $research_ctr C * $research_ctr C'
+                -o at P C'.
+  treat       : turn P * $at P C * disease C -o ().
+  build       : turn P * $at P C * hand P (city_card C) -o research_ctr C.
+  end_turn    : turn P -o ().
 }
 #interactive turn.
+
+do/infect_after_turn :
+  qui * stage turn * turn P * turn_next P P'
+-o
+  stage infect * virus * turn P'. 
+  % virus count should be # equal to outbreak level
+
+% special case for last player
+do/infect_after_turn_last :
+  qui * stage turn * turn P * last_player P * first_player P'
+-o
+  stage infect * virus * turn P'. 
+  % virus count should be # equal to outbreak level
 
 
 #trace _ start init.
